@@ -94,40 +94,41 @@ int btree_split_child(BTree btree, BTree_Node node, BTree_Node target) {
     }
 
     int i;
-    for (i = 0; i <= node->key_n; i++) {
-        if (btree_split_child(btree, node->children[i], target) == 1) {
-            BTree_Node x = node;
-            BTree_Node y = x->children[i];
-            BTree_Node z = btree_create_node(btree->order, y->is_leaf);
-            
-            int median = y->key_n/2 - (1 - y->key_n % 2);
-            BTree_Key to_move = y->keys[median];
+    BTree_Key elem = target->keys[0];
+    
+    for (i = 0; i < node->key_n && btree->f_comp(node->keys[i], elem) < 0; i++);
+    if (btree_split_child(btree, node->children[i], target) == 1) {
+        BTree_Node x = node;
+        BTree_Node y = x->children[i];
+        BTree_Node z = btree_create_node(btree->order, y->is_leaf);
+        
+        int median = y->key_n/2 - (1 - y->key_n % 2);
+        BTree_Key to_move = y->keys[median];
 
-            int j;
-            for (j = x->key_n; j > i; j--) {
-                x->keys[j] = x->keys[j - 1];
-                x->children[j + 1] = x->children[j];
-            }
-
-            x->keys[j] = to_move;
-            x->children[j + 1] = z;
-            x->key_n++;
-
-            for (j = 0; j < y->key_n - median - 1; j++) {
-                z->keys[j] = y->keys[j + median + 1];
-                z->children[j] = y->children[j + median + 1];
-                z->key_n++;
-            }
-
-            z->children[z->key_n] = y->children[y->key_n];
-            y->key_n = median;
-
-            if (x->key_n == btree->order) {
-                return 1;
-            }
-
-            return 0;
+        int j;
+        for (j = x->key_n; j > i; j--) {
+            x->keys[j] = x->keys[j - 1];
+            x->children[j + 1] = x->children[j];
         }
+
+        x->keys[j] = to_move;
+        x->children[j + 1] = z;
+        x->key_n++;
+
+        for (j = 0; j < y->key_n - median - 1; j++) {
+            z->keys[j] = y->keys[j + median + 1];
+            z->children[j] = y->children[j + median + 1];
+            z->key_n++;
+        }
+
+        z->children[z->key_n] = y->children[y->key_n];
+        y->key_n = median;
+
+        if (x->key_n == btree->order) {
+            return 1;
+        }
+
+        return 0;
     }
     
     return 0;
@@ -154,19 +155,106 @@ int btree_insert(BTree btree, BTree_Key elem) {
     return -1;
 }
 
-int _btree_remove(BTree btree, BTree_Node node, BTree_Key elem) {
-    if (!node) {
-        return 0;
+BTree_Key btree_get(BTree btree, BTree_Key elem) {
+    if (!btree) {
+        return NULL;
     }
 
+    BTree_Node node = btree_search(btree, elem);
+    for (int i = 0; i < node->key_n; i++) {
+        if (btree->f_comp(elem, node->keys[i]) == 0) {
+            return node->keys[i];
+        }
+    }
+
+    return NULL;
 }
 
-int btree_remove(BTree btree, BTree_Key elem) {
+BTree_Key btree_remove(BTree btree, BTree_Key elem) {
+    BTree_Key key = btree_get(btree, elem);
+    if (!key) {
+        return NULL;
+    }
+
+    int min_keys = (btree->order/2 + btree->order%2 - 1);
+
+    BTree_Node parent = NULL;
+    BTree_Node node = btree->root;
+    BTree_Node target = btree_search(btree, elem);
     
+    while (node != target) {
+        parent = node;
+        
+        int i;
+        for (i = 0; i < node->key_n && btree->f_comp(node->keys[i], elem) < 0; i++);
+        node = node->children[i];
+    }
+
+    int key_idx = 0;
+    while (btree->f_comp(elem, node->keys[key_idx]) != 0) {
+        key_idx++;
+    }
+
+    if (node->is_leaf) {
+        if (node->key_n > min_keys || node == btree->root) {
+            for (int i = key_idx; i < node->key_n - 1; i++) {
+                node->keys[i] = node->keys[i+1];
+            }
+            node->key_n--;
+
+            return key;
+        } else {    
+            printf("\n\n3\n\n");
+        } 
+
+    } else {
+        BTree_Node prev = node->children[key_idx];
+        BTree_Node next = node->children[key_idx + 1];
+
+        if (prev->key_n > min_keys) {
+            BTree_Node aux = prev;
+            while (!aux->is_leaf) {
+                aux = aux->children[aux->key_n];
+            }
+
+            node->keys[key_idx] = btree_remove(btree, aux->keys[aux->key_n - 1]);
+        } else if (next->key_n > min_keys) {
+            BTree_Node aux = next;
+            while (!aux->is_leaf) {
+                aux = aux->children[0];
+            }
+
+            node->keys[key_idx] = btree_remove(btree, aux->keys[0]);
+        } else {
+            for (int i = 0; i < next->key_n; i++) {
+                prev->keys[prev->key_n + i] = next->keys[i];   
+            }
+            prev->key_n += next->key_n;
+
+            free(next->keys);
+            free(next->children);
+            free(next);
+
+            for (int i = key_idx; i < node->key_n - 1; i++) {
+                node->keys[i] = node->keys[i + 1];
+            }
+            for (int i = key_idx + 1; i <= node->key_n - 1; i++) {
+                node->children[i] = node->children[i + 1];
+            }
+
+            node->key_n--;
+        }
+    }
+
+    if (btree->root->key_n == 0) {
+        btree->root = btree->root->children[0];
+    }
+
+    return key;
 }
 
-void btree_print_inorder(BTree btree) {
-    if (!btree->f_print) {
+void btree_print_breadth(BTree btree) {
+    if (!btree || !btree->f_print) {
         return;
     }
 
@@ -193,10 +281,63 @@ void btree_print_inorder(BTree btree) {
         for (int i = 0; i < node->key_n; i++) {
             btree->f_print(node->keys[i]);
         }
-        printf("} - %s\n", node->is_leaf ? "Folha" : "Interno");
+        printf("} - %s\n", node == btree->root ? "Raiz" : node->is_leaf ? "Folha"  : "Interno");
     }
 
-    // free(queue);
+    free(queue);
+}
+
+void _btree_print_depth_inorder(BTree btree, BTree_Node node) { 
+    if (!node) {
+        return;
+    }
+
+    for (int i = 0; i < node->key_n; i++) {
+        _btree_print_depth_inorder(btree, node->children[i]);
+
+        btree->f_print(node->keys[i]);
+    }
+    _btree_print_depth_inorder(btree, node->children[node->key_n]);
+}
+
+void btree_print_depth_inorder(BTree btree) {
+    _btree_print_depth_inorder(btree, btree->root);
+    printf("\n");
+}
+
+void _btree_print_depth_preorder(BTree btree, BTree_Node node) { 
+    if (!node) {
+        return;
+    }
+
+    for (int i = 0; i < node->key_n; i++) {
+        btree->f_print(node->keys[i]);
+        
+        _btree_print_depth_preorder(btree, node->children[i]);
+    }
+    _btree_print_depth_preorder(btree, node->children[node->key_n]);
+}
+
+void btree_print_depth_preorder(BTree btree) {
+    _btree_print_depth_preorder(btree, btree->root);
+    printf("\n");
+}
+
+void _btree_print_depth_postorder(BTree btree, BTree_Node node) { 
+    if (!node) {
+        return;
+    }
+
+    _btree_print_depth_postorder(btree, node->children[0]);
+    for (int i = 1; i <= node->key_n; i++) {
+        _btree_print_depth_postorder(btree, node->children[i]);
+        btree->f_print(node->keys[i-1]);   
+    }
+}
+
+void btree_print_depth_postorder(BTree btree) {
+    _btree_print_depth_postorder(btree, btree->root);
+    printf("\n");
 }
 
 BTree_Node btree_search(BTree btree, BTree_Key elem) {

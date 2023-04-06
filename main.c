@@ -3,12 +3,6 @@
 
 #include "BTree/BTree.h"
 
-int* create_elem(int a) {
-    int* elem = malloc(sizeof(int));
-    *elem = a;
-
-    return elem;
-}
 
 int compare(void* a, void* b) {
     int int_a = *((int*) a);
@@ -21,25 +15,73 @@ void print(void* a) {
     printf(" [%d] ", *(int*) a);
 }
 
+int* create_value(int value) {
+    int* ptr = malloc(sizeof(int));
+    *ptr = value;
+
+    return ptr;
+}
+
 int main() {
-    BTree tree = btree_create(4, compare, free, print);
-    printf("%d\n", btree_insert(tree, create_elem(9)));
-    printf("%d\n", btree_insert(tree, create_elem(1)));
-    printf("%d\n", btree_insert(tree, create_elem(7)));
-    printf("%d\n", btree_insert(tree, create_elem(6)));
-    printf("%d\n", btree_insert(tree, create_elem(5)));
-    printf("%d\n", btree_insert(tree, create_elem(8)));
-    printf("%d\n", btree_insert(tree, create_elem(10)));
-    printf("%d\n", btree_insert(tree, create_elem(11)));
-    printf("%d\n", btree_insert(tree, create_elem(4)));
-    printf("%d\n", btree_insert(tree, create_elem(3)));
-    printf("%d\n", btree_insert(tree, create_elem(12)));
-    printf("%d\n", btree_insert(tree, create_elem(13)));
-    printf("%d\n", btree_insert(tree, create_elem(14)));
-    printf("%d\n", btree_insert(tree, create_elem(15)));
-    printf("%d\n", btree_insert(tree, create_elem(16)));
-    
-    btree_print_inorder(tree);
+    int order;
+    printf("Insira a ordem maxima da arvore: ");
+    scanf("%d", &order);
+    BTree btree = btree_create(order, compare, free, print);
+    if (!btree) {
+        printf("Erro\n");
+        return -1;
+    }
+
+    int input;
+    do {
+        printf("Insira a opcao desejada\n");
+        printf("1- Inserir valor\n");
+        printf("2- Remover valor\n");
+        printf("3- Imprimir arvore - Nodes em ordem de altura\n");
+        printf("4- Imprimir arvore - Elementos ordenados\n");
+        printf("5- Buscar node contendo elemento\n");
+        printf("Outro valor: Encerrar operacao\n");
+        scanf("%d", &input);
+
+        int value;
+        BTree_Key key;
+        switch (input) {
+            case 1:
+                printf("Insira a chave a ser inserida: ");
+                scanf("%d", &value);
+
+                key = create_value(value);
+                if (btree_insert(btree, key) == 1) {
+                    printf("Chave inserida com sucesso!\n");
+                } else {
+                    printf("Chave ja presente na arvore\n");
+                }
+                break;
+
+            case 2:
+                printf("Insira a chave a ser removida: ");
+                scanf("%d", &value);
+                
+                if ((key = btree_remove(btree, &value))) {
+                    printf("Chave removida com sucesso\n");
+                    //free(key);
+                } else {
+                    printf("Chave nao encontrada na arvore\n");
+                }
+                
+                break;
+            case 3:
+                btree_print_breadth(btree);
+                break;
+            
+            case 4:
+                btree_print_depth_inorder(btree);
+                break;
+
+            default:
+                input = 0;
+        }
+    } while (input != 0);
 
     return 0;
 }

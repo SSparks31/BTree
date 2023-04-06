@@ -19,6 +19,8 @@ struct btree {
     function_key_print f_print;
 };
 
+void btree_destroy_node(BTree_Node node);
+
 BTree_Node btree_create_node(int order, int is_leaf) {
     BTree_Node node = calloc(1, sizeof(struct btree_node));
 
@@ -182,12 +184,12 @@ BTree_Key btree_remove(BTree btree, BTree_Key elem) {
     BTree_Node node = btree->root;
     BTree_Node target = btree_search(btree, elem);
     
+    int parent_idx;
     while (node != target) {
         parent = node;
         
-        int i;
-        for (i = 0; i < node->key_n && btree->f_comp(node->keys[i], elem) < 0; i++);
-        node = node->children[i];
+        for (parent_idx = 0; parent_idx < node->key_n && btree->f_comp(node->keys[parent_idx], elem) < 0; parent_idx++);
+        node = node->children[parent_idx];
     }
 
     int key_idx = 0;
@@ -204,7 +206,52 @@ BTree_Key btree_remove(BTree btree, BTree_Key elem) {
 
             return key;
         } else {    
-            printf("\n\n3\n\n");
+            BTree_Node left_sibling = parent_idx > 0 ? parent->children[parent_idx - 1] : NULL;
+            BTree_Node right_sibling = parent_idx < parent->key_n ? parent->children[parent_idx + 1] : NULL;
+
+            if (left_sibling && left_sibling->key_n > min_keys) {
+                node->key_n--;
+                btree_insert_nonfull(btree, node, parent->keys[parent_idx - 1]);
+                parent->keys[parent_idx - 1] = btree_remove(btree, left_sibling->keys[left_sibling->key_n - 1]);
+            } else if (right_sibling && right_sibling->key_n > min_keys) {
+                node->key_n--;
+                btree_insert_nonfull(btree, node, parent->keys[parent_idx]);
+                parent->keys[parent_idx] = btree_remove(btree, right_sibling->keys[0]);
+            } else {
+                if (right_sibling) {
+                    btree_insert_nonfull(btree, node, parent->keys[parent_idx]);
+                    for (int i = 0; i < right_sibling->key_n; i++) {
+                        btree_insert_nonfull(btree, node, right_sibling->keys[i]);
+                    }
+
+                    for (int i = parent_idx; i < parent->key_n - 1; i++) {
+                        parent->keys[i] = parent->keys[i + 1];
+                    }
+                    for (int i = parent_idx + 1; i <= parent->key_n - 1; i++) {
+                        parent->children[i] = parent->children[i + 1];
+                    }
+                    parent->key_n--;
+
+                    btree_destroy_node(right_sibling);
+                } else {
+                    btree_insert_nonfull(btree, left_sibling, parent->keys[parent_idx - 1]);
+                    for (int i = 0; i < node->key_n; i++) {
+                        btree_insert_nonfull(btree, left_sibling, node->keys[i]);
+                    }
+
+                    for (int i = parent_idx - 1; i < parent->key_n - 1; i++) {
+                        parent->keys[i] = parent->keys[i + 1];
+                    }
+                    for (int i = parent_idx; i <= parent->key_n - 1; i++) {
+                        parent->children[i] = parent->children[i + 1];
+                    }
+                    parent->key_n--;
+
+                    btree_destroy_node(node);
+                }
+
+                btree_remove(btree, key);
+            }
         } 
 
     } else {
@@ -231,9 +278,7 @@ BTree_Key btree_remove(BTree btree, BTree_Key elem) {
             }
             prev->key_n += next->key_n;
 
-            free(next->keys);
-            free(next->children);
-            free(next);
+            btree_destroy_node(next);
 
             for (int i = key_idx; i < node->key_n - 1; i++) {
                 node->keys[i] = node->keys[i + 1];
@@ -246,8 +291,10 @@ BTree_Key btree_remove(BTree btree, BTree_Key elem) {
         }
     }
 
-    if (btree->root->key_n == 0) {
+    if (btree->root->key_n <= 0) {
+        BTree_Node old_root = btree->root;
         btree->root = btree->root->children[0];
+        btree_destroy_node(old_root);
     }
 
     return key;
@@ -375,6 +422,12 @@ BTree_Node btree_search(BTree btree, BTree_Key elem) {
     return NULL;
 }
 
+void btree_destroy_node(BTree_Node node) {
+    free(node->children);
+    free(node->keys);
+    free(node);
+}
+
 void btree_destroy_elements(BTree btree, BTree_Node node) {
     if (node == NULL) {
         return;
@@ -389,10 +442,7 @@ void btree_destroy_elements(BTree btree, BTree_Node node) {
     for (int i = 0; i < node->key_n; i++) {
         btree->f_free(node->keys[i]);
     }
-
-    free(node->children);
-    free(node->keys);
-    free(node);
+    btree_destroy_node(node);
 }
 
 void btree_destroy(BTree* btree) {

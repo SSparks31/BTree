@@ -2,6 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+typedef enum {
+    REBALANCE = 0,
+    CASE1,
+    CASE2,
+    CASE3
+} cases;
+
 struct btree_node {
     int key_n;
     BTree_Key* keys;
@@ -137,6 +144,10 @@ int btree_split_child(BTree btree, BTree_Node node, BTree_Node target) {
 }
 
 int btree_insert(BTree btree, BTree_Key elem) {
+    if (!btree) {
+        return -1;
+    }
+
     BTree_Node to_insert = btree_search(btree, elem);
     for (int i = 0; i < to_insert->key_n; i++) {
         if (btree->f_comp(to_insert->keys[i], elem) == 0) {
@@ -173,6 +184,10 @@ BTree_Key btree_get(BTree btree, BTree_Key elem) {
 }
 
 BTree_Key btree_remove(BTree btree, BTree_Key elem) {
+    if (!btree) {
+        return NULL;
+    }
+
     BTree_Key key = btree_get(btree, elem);
     if (!key) {
         return NULL;
@@ -237,7 +252,7 @@ BTree_Key btree_remove(BTree btree, BTree_Key elem) {
                     btree_insert_nonfull(btree, left_sibling, parent->keys[parent_idx - 1]);
                     for (int i = 0; i < node->key_n; i++) {
                         btree_insert_nonfull(btree, left_sibling, node->keys[i]);
-                    }
+                    }   
 
                     for (int i = parent_idx - 1; i < parent->key_n - 1; i++) {
                         parent->keys[i] = parent->keys[i + 1];
@@ -245,7 +260,6 @@ BTree_Key btree_remove(BTree btree, BTree_Key elem) {
                     for (int i = parent_idx; i <= parent->key_n - 1; i++) {
                         parent->children[i] = parent->children[i + 1];
                     }
-                    parent->key_n--;
 
                     btree_destroy_node(node);
                 }
@@ -300,6 +314,14 @@ BTree_Key btree_remove(BTree btree, BTree_Key elem) {
     return key;
 }
 
+void btree_print_node(BTree btree, BTree_Node node) {
+    printf("Node {");
+    for (int i = 0; i < node->key_n; i++) {
+        btree->f_print(node->keys[i]);
+    }
+    printf("} - %s\n", node == btree->root ? "Raiz" : node->is_leaf ? "Folha"  : "Interno");
+}
+
 void btree_print_breadth(BTree btree) {
     if (!btree || !btree->f_print) {
         return;
@@ -324,11 +346,7 @@ void btree_print_breadth(BTree btree) {
             }
         }
 
-        printf("Node {");
-        for (int i = 0; i < node->key_n; i++) {
-            btree->f_print(node->keys[i]);
-        }
-        printf("} - %s\n", node == btree->root ? "Raiz" : node->is_leaf ? "Folha"  : "Interno");
+        btree_print_node(btree, node);
     }
 
     free(queue);
@@ -348,8 +366,9 @@ void _btree_print_depth_inorder(BTree btree, BTree_Node node) {
 }
 
 void btree_print_depth_inorder(BTree btree) {
+    printf("{");
     _btree_print_depth_inorder(btree, btree->root);
-    printf("\n");
+    printf("}\n");
 }
 
 void _btree_print_depth_preorder(BTree btree, BTree_Node node) { 
@@ -366,25 +385,9 @@ void _btree_print_depth_preorder(BTree btree, BTree_Node node) {
 }
 
 void btree_print_depth_preorder(BTree btree) {
+    printf("{");
     _btree_print_depth_preorder(btree, btree->root);
-    printf("\n");
-}
-
-void _btree_print_depth_postorder(BTree btree, BTree_Node node) { 
-    if (!node) {
-        return;
-    }
-
-    _btree_print_depth_postorder(btree, node->children[0]);
-    for (int i = 1; i <= node->key_n; i++) {
-        _btree_print_depth_postorder(btree, node->children[i]);
-        btree->f_print(node->keys[i-1]);   
-    }
-}
-
-void btree_print_depth_postorder(BTree btree) {
-    _btree_print_depth_postorder(btree, btree->root);
-    printf("\n");
+    printf("}\n");
 }
 
 BTree_Node btree_search(BTree btree, BTree_Key elem) {

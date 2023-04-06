@@ -40,6 +40,7 @@ int main() {
         printf("3- Imprimir arvore - Nodes em ordem de altura\n");
         printf("4- Imprimir arvore - Elementos ordenados\n");
         printf("5- Buscar node contendo elemento\n");
+        printf("6- Inserir valores de 1 a 25 na arvore\n");
         printf("Outro valor: Encerrar operacao\n");
         scanf("%d", &input);
 
@@ -76,6 +77,24 @@ int main() {
             
             case 4:
                 btree_print_depth_inorder(btree);
+                break;
+
+            case 5:
+                printf("Insira o valor a ser buscado: ");
+                scanf("%d", &value);
+                if (btree_get(btree, &value) == NULL) {
+                    printf("Elemento nao encontrado na arvore");
+                } else {
+                    BTree_Node node = btree_search(btree, &value);
+                    btree_print_node(btree, node);
+                }
+                break;
+
+            case 6:
+                for (int i = 1; i <= 25; i++) {
+                    key = create_value(i);
+                    btree_insert(btree, key);
+                }
                 break;
 
             default:

@@ -380,22 +380,26 @@ void btree_destroy_elements(BTree btree, BTree_Node node) {
         return;
     }
 
-    if (node->is_leaf != 1) {
-        for (int i = 0; i < node->key_n + 1; i++) {
+    if (!node->is_leaf) {
+        for (int i = 0; i <= node->key_n; i++) {
             btree_destroy_elements(btree, node->children[i]);
         }
-        free(node->children);
     }
 
     for (int i = 0; i < node->key_n; i++) {
         btree->f_free(node->keys[i]);
     }
-    
+
+    free(node->children);
     free(node->keys);
+    free(node);
 }
 
 void btree_destroy(BTree* btree) {
-    if (!btree || !*btree);
+    if (!btree || !*btree) {
+        return;
+    }
+
     btree_destroy_elements((*btree), (*btree)->root);
 
     free((*btree));

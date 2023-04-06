@@ -64,7 +64,7 @@ int main() {
                 
                 if ((key = btree_remove(btree, &value))) {
                     printf("Chave removida com sucesso\n");
-                    //free(key);
+                    free(key);
                 } else {
                     printf("Chave nao encontrada na arvore\n");
                 }
@@ -83,5 +83,6 @@ int main() {
         }
     } while (input != 0);
 
+    btree_destroy(&btree);
     return 0;
 }

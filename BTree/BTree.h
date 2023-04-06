@@ -13,7 +13,7 @@ typedef int (*function_compare)(BTree_Key a, BTree_Key b);
 typedef void (*function_free)(BTree_Key a);
 typedef void (*function_key_print)(BTree_Key a);
 
-typedef void (*function_key)(BTree_Key a);
+typedef void (*function_key)(BTree_Key a, void* data);
 
 BTree btree_create(int order, function_compare f_comp, function_free f_free, function_key_print f_print);
 
